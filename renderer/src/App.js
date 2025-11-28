@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import './global.css';
 
 function App() {
     const [rules, setRules] = useState([]);
@@ -46,7 +47,7 @@ function App() {
 
     return (
         <div style={{ padding: "20px" }}>
-            <h1>CleanDesk - Smart Desktop Organizer</h1>
+            <h1>CleanDesk</h1>
 
             {/* Folder picker */}
             <div>
