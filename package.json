@@ -4,19 +4,17 @@
   "description": "",
   "main": "main.js",
   "scripts": {
-    "start": "electron .",
-    "dev": "concurrently \"npm:start --prefix renderer\" \"wait-on http://localhost:3000 && electron .\""
+    "start": "concurrently \"npm:react-start\" \"npm:electron-start\"",
+    "react-start": "npm --prefix renderer start",
+    "electron-start": "wait-on http://localhost:3000 && electron ."
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "type": "commonjs",
   "devDependencies": {
-    "autoprefixer": "^10.4.22",
     "concurrently": "^9.2.1",
     "electron": "^39.2.4",
-    "postcss": "^8.5.6",
-    "tailwindcss": "^3.4.18",
     "wait-on": "^9.0.3"
   }
 }
