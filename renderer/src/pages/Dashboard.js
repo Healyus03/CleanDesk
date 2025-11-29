@@ -1,6 +1,9 @@
-import React from 'react';
+import React, { useState } from 'react';
+import { Check, FileText } from 'lucide-react';
 
-export default function Dashboard({ log, folder, pickFolder }) {
+export default function Dashboard({ log, folder, pickFolder, startAuto, stopAuto }) {
+  const [autoOn, setAutoOn] = useState(false);
+
   return (
     <main>
       <header className="mb-8">
@@ -14,7 +17,7 @@ export default function Dashboard({ log, folder, pickFolder }) {
               <div className="stat-value">{log.length}</div>
               <div className="stat-label">files moved</div>
             </div>
-            <div className="stat-icon">✓</div>
+            <div className="stat-icon"><Check className="w-5 h-5 text-green-600" /></div>
           </div>
         </article>
 
@@ -24,9 +27,23 @@ export default function Dashboard({ log, folder, pickFolder }) {
           </header>
 
           <div className="stat">
-            <div className="muted">Running in background</div>
+            <div className="muted">{autoOn ? 'Running in background' : 'Disabled'}</div>
             <label className="toggle-switch">
-              <input type="checkbox" className="sr-only peer" defaultChecked />
+              <input
+                type="checkbox"
+                className="sr-only peer"
+                checked={autoOn}
+                onChange={async (e) => {
+                  const on = e.target.checked;
+                  setAutoOn(on);
+                  if (on) {
+                    // start periodic auto-organize (5s default)
+                    if (startAuto) await startAuto(5000);
+                  } else {
+                    if (stopAuto) await stopAuto();
+                  }
+                }}
+              />
               <div className="toggle-slider">
                 <div className="toggle-thumb" />
               </div>
@@ -49,7 +66,7 @@ export default function Dashboard({ log, folder, pickFolder }) {
           {log.slice(-3).reverse().map((l, i) => (
             <article key={i} className="recent-item">
               <div className="flex items-center gap-3">
-                <span className="text-2xl">📄</span>
+                <span className="text-2xl"><FileText className="w-6 h-6" /></span>
                 <div>
                   <div className="font-medium text-gray-900">{l.file}</div>
                   <div className="text-sm text-gray-500">{l.movedTo}</div>

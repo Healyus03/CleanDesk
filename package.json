@@ -12,6 +12,9 @@
   "author": "",
   "license": "ISC",
   "type": "commonjs",
+  "dependencies": {
+    "chokidar": "^3.5.3"
+  },
   "devDependencies": {
     "concurrently": "^9.2.1",
     "electron": "^39.2.4",

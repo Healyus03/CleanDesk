@@ -1,7 +1,7 @@
 [
   {
-    "type": ".pdf",
+    "type": ".txt",
     "namePattern": "",
-    "destination": "Pdfs"
+    "destination": "Txts"
   }
 ]

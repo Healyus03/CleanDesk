@@ -56,12 +56,30 @@
     @apply relative inline-block w-14 h-8;
   }
 
+  /* Toggle track (neutral by default) */
   .toggle-slider {
-    @apply w-14 h-8 bg-blue-600 rounded-full relative transition-colors;
+    @apply w-14 h-8 bg-gray-200 rounded-full relative transition-colors duration-200;
   }
 
+  /* Toggle thumb */
   .toggle-thumb {
-    @apply absolute top-1 left-1 bg-white rounded-full h-6 w-6 transition-transform;
+    @apply absolute top-1 left-1 bg-white rounded-full h-6 w-6 transition-transform duration-200 transform;
+    /* ensure it starts in the left position */
+    transform: translateX(0);
+  }
+
+  /* When the visually-hidden checkbox (peer) is checked, style the slider and move the thumb */
+  .peer:checked + .toggle-slider {
+    @apply bg-blue-600;
+  }
+
+  .peer:focus + .toggle-slider {
+    @apply ring-2 ring-blue-300;
+  }
+
+  /* Move the thumb to the right when checked. 1.75rem == 28px (w-14 - w-6 - left padding) */
+  .peer:checked + .toggle-slider .toggle-thumb {
+    transform: translateX(1.75rem);
   }
 
   .watched-folder {
