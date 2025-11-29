@@ -1,3 +1,86 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+@layer base {
+  /* Global heading sizes - change these values to suit your design */
+  h1 {
+    @apply md:text-4xl leading-tight text-gray-800;
+  }
+
+  h2 {
+    @apply md:text-2xl leading-snug text-gray-800;
+  }
+
+  h3 {
+    @apply md:text-xl text-gray-800;
+  }
+
+  /* Small utility: make paragraphs a bit easier to read */
+  p {
+    @apply text-base md:text-lg text-gray-700;
+  }
+}
+
+@layer components {
+  /* Card container used throughout the dashboard */
+  .card {
+    @apply bg-white rounded-xl border border-gray-200 p-6;
+  }
+
+  .card-header {
+    @apply flex items-center justify-between mb-3;
+  }
+
+  .card-title {
+    @apply font-semibold text-lg text-gray-900;
+  }
+
+  .stat {
+    @apply flex items-center justify-between;
+  }
+
+  .stat-value {
+    @apply text-3xl font-semibold text-gray-900;
+  }
+
+  .stat-label {
+    @apply mt-2 text-sm text-gray-500;
+  }
+
+  .stat-icon {
+    @apply w-12 h-12 bg-green-100 rounded-full flex items-center justify-center text-2xl;
+  }
+
+  .toggle-switch {
+    @apply relative inline-block w-14 h-8;
+  }
+
+  .toggle-slider {
+    @apply w-14 h-8 bg-blue-600 rounded-full relative transition-colors;
+  }
+
+  .toggle-thumb {
+    @apply absolute top-1 left-1 bg-white rounded-full h-6 w-6 transition-transform;
+  }
+
+  .watched-folder {
+    @apply text-gray-700;
+  }
+
+  .recent-list {
+    @apply space-y-3;
+  }
+
+  .recent-item {
+    @apply flex items-center justify-between py-3 border-b border-gray-100 last:border-0;
+  }
+
+  .recent-meta {
+    @apply text-sm text-gray-500;
+  }
+
+  .muted {
+    @apply text-gray-600;
+  }
+}

@@ -1,5 +1,13 @@
 import React, { useState, useEffect } from "react";
 import "./global.css";
+import { HashRouter as Router, Routes, Route, Link } from 'react-router-dom';
+
+import Dashboard from './pages/Dashboard';
+import Rules from './pages/Rules';
+import Watched from './pages/Watched';
+import AutoOrganize from './pages/AutoOrganize';
+import Logs from './pages/Logs';
+import Settings from './pages/Settings';
 
 function App() {
     const [rules, setRules] = useState([]);
@@ -46,61 +54,59 @@ function App() {
     };
 
     return (
-        <div className="min-h-screen bg-gray-50 p-8">
-            <div className="max-w-4xl mx-auto bg-white shadow-md rounded-lg p-6">
-                <h1 className="text-3xl font-extrabold text-gray-800 mb-6">CleanDesk</h1>
-
-                {/* Folder picker */}
-                <div className="flex gap-3 items-center">
-                    <input value={folder} readOnly placeholder="Folder to organize" className="flex-1 border border-gray-200 rounded px-3 py-2 bg-gray-50" />
-                    <button onClick={pickFolder} className="bg-indigo-600 text-white px-4 py-2 rounded hover:bg-indigo-700">Choose Folder</button>
-                </div>
-
-                {/* Rules form */}
-                <div className="mt-6">
-                    <h2 className="text-xl font-semibold text-gray-700 mb-3">Add Rule</h2>
-                    <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
-                        <input placeholder="File type (*.png)" value={type} onChange={e => setType(e.target.value)} className="border rounded px-3 py-2" />
-                        <input placeholder="Name pattern (CV*)" value={namePattern} onChange={e => setNamePattern(e.target.value)} className="border rounded px-3 py-2" />
-                        <input placeholder="Destination folder" value={destination} onChange={e => setDestination(e.target.value)} className="border rounded px-3 py-2" />
-                        <div className="flex items-center">
-                            <button onClick={addRule} className="w-full bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700">Add Rule</button>
+        <Router>
+            <div className="min-h-screen bg-gray-50 flex">
+                {/* Sidebar */}
+                <aside className="w-64 bg-white border-r border-gray-200 p-6">
+                    <div className="flex items-center gap-3 mb-8">
+                        <div className="w-10 h-10 bg-blue-500 rounded-lg flex items-center justify-center text-white text-xl">📁</div>
+                        <div>
+                            <div className="font-bold text-lg">CleanDesk</div>
+                            <div className="text-sm text-gray-500">Organizer</div>
                         </div>
                     </div>
-                </div>
 
-                {/* Rules list */}
-                <div className="mt-6">
-                    <h2 className="text-xl font-semibold text-gray-700 mb-3">Rules</h2>
-                    <ul>
-                        {rules.map((r, i) => (
-                            <li key={i} className="flex justify-between items-center bg-gray-50 p-3 rounded mb-2">
-                                <div className="text-gray-700">{r.type || r.namePattern} → <span className="font-medium text-gray-800">{r.destination}</span></div>
-                                <button onClick={() => deleteRule(i)} className="text-red-600 hover:underline">Delete</button>
-                            </li>
-                        ))}
-                    </ul>
-                </div>
+                    <nav className="space-y-2">
+                        <Link to="/" className="w-full flex items-center gap-3 px-4 py-3 bg-blue-50 text-blue-600 rounded-lg font-medium">
+                            <h3>📊</h3> Dashboard
+                        </Link>
+                        <Link to="/rules" className="w-full flex items-center gap-3 px-4 py-3 text-gray-700 hover:bg-gray-50 rounded-lg">
+                            <h3>📋</h3> Rules
+                        </Link>
+                        <Link to="/watched" className="w-full flex items-center gap-3 px-4 py-3 text-gray-700 hover:bg-gray-50 rounded-lg">
+                            <h3>📂</h3> Watched Folder
+                        </Link>
+                        <Link to="/auto" className="w-full flex items-center gap-3 px-4 py-3 text-gray-700 hover:bg-gray-50 rounded-lg">
+                            <h3>🔄</h3> Auto-organize
+                        </Link>
+                        <Link to="/logs" className="w-full flex items-center gap-3 px-4 py-3 text-gray-700 hover:bg-gray-50 rounded-lg">
+                            <h3>📝</h3> Logs
+                        </Link>
+                        <Link to="/settings" className="w-full flex items-center gap-3 px-4 py-3 text-gray-700 hover:bg-gray-50 rounded-lg">
+                            <h3>⚙️</h3> Settings
+                        </Link>
+                    </nav>
+                </aside>
 
-                {/* Organize button */}
-                <div className="mt-6">
-                    <button onClick={organize} className="bg-indigo-600 text-white px-6 py-3 rounded shadow hover:bg-indigo-700">Organize Now</button>
-                </div>
+                {/* Main Content */}
+                <main className="flex-1 p-8">
+                    <Routes>
+                        <Route path="/" element={<Dashboard log={log} folder={folder} pickFolder={pickFolder} />} />
+                        <Route path="/rules" element={<Rules rules={rules} addRule={addRule} deleteRule={deleteRule} type={type} setType={setType} namePattern={namePattern} setNamePattern={setNamePattern} destination={destination} setDestination={setDestination} />} />
+                        <Route path="/watched" element={<Watched folder={folder} pickFolder={pickFolder} />} />
+                        <Route path="/auto" element={<AutoOrganize />} />
+                        <Route path="/logs" element={<Logs log={log} />} />
+                        <Route path="/settings" element={<Settings />} />
+                    </Routes>
 
-                {/* Log */}
-                <div className="mt-6">
-                    <h2 className="text-xl font-semibold text-gray-700 mb-3">Log</h2>
-                    <ul className="space-y-2">
-                        {log.map((l, i) => (
-                            <li key={i} className="flex justify-between items-center bg-gray-50 p-2 rounded">
-                                <div className="text-sm text-gray-700">{l.file} → <span className="font-medium">{l.movedTo}</span></div>
-                                <div className="text-xs text-gray-500">{new Date(l.timestamp).toLocaleTimeString()}</div>
-                            </li>
-                        ))}
-                    </ul>
-                </div>
+                    {/* Hidden functionality (accessible through sidebar) */}
+                    <div className="hidden">
+                        <button onClick={organize} className="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700">Organize Now</button>
+                        <button onClick={addRule} className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700">Add Rule</button>
+                    </div>
+                </main>
             </div>
-        </div>
+        </Router>
     );
 }
 
