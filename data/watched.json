@@ -1,0 +1,24 @@
+{
+  "watched": [
+    {
+      "id": "folder_1764438566953",
+      "path": "C:\\Users\\circe\\Desktop\\tes2",
+      "enabled": true,
+      "autoIntervalMs": 5000,
+      "ruleOverrides": {
+        "rule_1_0a4a90cf": false,
+        "rule_1764438602855": true
+      }
+    },
+    {
+      "id": "folder_1764439588324",
+      "path": "C:\\Users\\circe\\Desktop\\test",
+      "enabled": true,
+      "autoIntervalMs": 5000,
+      "ruleOverrides": {
+        "rule_1_0a4a90cf": true,
+        "rule_1764438602855": true
+      }
+    }
+  ]
+}

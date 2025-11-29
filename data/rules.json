@@ -2,6 +2,15 @@
   {
     "type": ".txt",
     "namePattern": "",
-    "destination": "Txts"
+    "destination": "Txts",
+    "id": "rule_1_0a4a90cf",
+    "enabled": true
+  },
+  {
+    "id": "rule_1764438602855",
+    "type": ".pdf",
+    "namePattern": "",
+    "destination": "Pdfs",
+    "enabled": true
   }
 ]

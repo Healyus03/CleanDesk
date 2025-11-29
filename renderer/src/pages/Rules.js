@@ -28,13 +28,15 @@ export default function Rules({ rules, addRule, deleteRule, type, setType, nameP
       <section>
         <h2 className="font-semibold text-lg mb-2">Existing Rules</h2>
         <div className="recent-list">
-          {rules.map((r, i) => (
-            <article key={i} className="recent-item">
+          {rules.map((r) => (
+            <article key={r.id || r.destination} className="recent-item flex items-center justify-between">
               <div>
                 <div className="font-medium">{r.type} — {r.namePattern}</div>
                 <div className="recent-meta">{r.destination}</div>
               </div>
-              <button onClick={() => deleteRule(i)} className="text-red-600">Delete</button>
+              <div className="flex items-center gap-3">
+                <button onClick={() => deleteRule(r.id)} className="text-red-600">Delete</button>
+              </div>
             </article>
           ))}
           {rules.length === 0 && <div className="text-gray-400">No rules defined</div>}

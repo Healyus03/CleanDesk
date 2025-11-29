@@ -11,16 +11,22 @@ const safeInvoke = (channel, ...args) => {
 contextBridge.exposeInMainWorld("electronAPI", {
     loadRules: () => safeInvoke("load-rules"),
     saveRules: (rules) => safeInvoke("save-rules", rules),
-    organizeFiles: (folderPath) => safeInvoke("organize-files", folderPath),
     loadLog: () => safeInvoke("load-log"),
     selectFolder: () => safeInvoke("select-folder"),
-    startAutoOrganize: (folderPath, intervalMs) => safeInvoke('start-auto-organize', folderPath, intervalMs),
-    stopAutoOrganize: () => safeInvoke('stop-auto-organize'),
     startAuto: (folderPath, intervalMs) => safeInvoke('start-auto-organize', folderPath, intervalMs),
-    stopAuto: () => safeInvoke('stop-auto-organize'),
+    stopAuto: (folderPath) => safeInvoke('stop-auto-organize', folderPath),
+    getAutoRunning: () => safeInvoke('get-auto-running'),
+    loadWatched: () => safeInvoke('load-watched'),
+    saveWatched: (watched) => safeInvoke('save-watched', watched),
     onAutoOrganizeLog: (cb) => {
         if (ipcRenderer && typeof ipcRenderer.on === 'function') {
-            ipcRenderer.on('auto-organize-log', (_, log) => cb(log));
+            // payload now is { folderPath, log }
+            ipcRenderer.on('auto-organize-log', (_, payload) => cb(payload));
+        }
+    },
+    onAutoRunningChanged: (cb) => {
+        if (ipcRenderer && typeof ipcRenderer.on === 'function') {
+            ipcRenderer.on('auto-running-changed', (_, paths) => cb(paths));
         }
     }
 });

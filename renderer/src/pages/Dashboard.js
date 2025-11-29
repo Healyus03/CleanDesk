@@ -1,8 +1,9 @@
-import React, { useState } from 'react';
-import { Check, FileText } from 'lucide-react';
+import React from 'react';
+import { Check, FileText, Folder } from 'lucide-react';
 
-export default function Dashboard({ log, folder, pickFolder, startAuto, stopAuto }) {
-  const [autoOn, setAutoOn] = useState(false);
+export default function Dashboard({ log, watched = [], startAuto, stopAuto, autoRunning = false }) {
+  // controlled toggle: use parent prop directly to avoid flicker when remounting
+  const autoOn = !!autoRunning;
 
   return (
     <main>
@@ -22,6 +23,16 @@ export default function Dashboard({ log, folder, pickFolder, startAuto, stopAuto
         </article>
 
         <article className="card">
+          <div className="stat">
+            <div>
+              <div className="stat-value">{watched.length}</div>
+              <div className="stat-label">watched folders</div>
+            </div>
+            <div className="stat-icon"><Folder className="w-5 h-5 text-blue-600" /></div>
+          </div>
+        </article>
+
+        <article className="card col-span-2">
           <header className="card-header">
             <div className="card-title">Auto-Organize</div>
           </header>
@@ -35,7 +46,6 @@ export default function Dashboard({ log, folder, pickFolder, startAuto, stopAuto
                 checked={autoOn}
                 onChange={async (e) => {
                   const on = e.target.checked;
-                  setAutoOn(on);
                   if (on) {
                     // start periodic auto-organize (5s default)
                     if (startAuto) await startAuto(5000);
@@ -50,14 +60,6 @@ export default function Dashboard({ log, folder, pickFolder, startAuto, stopAuto
             </label>
           </div>
         </article>
-      </section>
-
-      <section className="card mb-8">
-        <div className="card-header">
-          <div className="card-title">Watched folder</div>
-          <button onClick={pickFolder} className="text-blue-600 hover:underline">Change folder</button>
-        </div>
-        <p className="watched-folder">{folder || "D:/Documents"}</p>
       </section>
 
       <section className="card">

@@ -1,91 +1,188 @@
 import React, { useState, useEffect } from "react";
 import "./global.css";
-import { HashRouter as Router, Routes, Route, Link } from 'react-router-dom';
+import { HashRouter as Router, Routes, Route, NavLink } from 'react-router-dom';
 
 // lucide icons
-import { Home, FileText, Folder, RefreshCw, List, Settings as Cog } from 'lucide-react';
+import { Home, FileText, Folder, List, Settings as Cog } from 'lucide-react';
 
 import Dashboard from './pages/Dashboard';
 import Rules from './pages/Rules';
 import Watched from './pages/Watched';
-import AutoOrganize from './pages/AutoOrganize';
 import Logs from './pages/Logs';
 import Settings from './pages/Settings';
 
 function App() {
     const [rules, setRules] = useState([]);
-    const [folder, setFolder] = useState("");
     const [log, setLog] = useState([]);
     const [type, setType] = useState("");
     const [namePattern, setNamePattern] = useState("");
     const [destination, setDestination] = useState("");
+    const [watched, setWatched] = useState([]);
+    const [autoRunningPaths, setAutoRunningPaths] = useState([]);
 
-    // Load rules and log on start
+    // Load rules, log, and watched on start
     useEffect(() => {
         window.electronAPI.loadRules().then(setRules);
         window.electronAPI.loadLog().then(setLog);
+        if (window.electronAPI && typeof window.electronAPI.loadWatched === 'function') {
+            window.electronAPI.loadWatched().then((list) => {
+                if (Array.isArray(list)) setWatched(list);
+                else if (Array.isArray(list.watched)) setWatched(list.watched);
+                else setWatched([]);
+            }).catch(() => setWatched([]));
+        }
+
+        // fetch which watched folders currently have auto running
+        if (window.electronAPI && typeof window.electronAPI.getAutoRunning === 'function') {
+            window.electronAPI.getAutoRunning().then((paths) => {
+                if (Array.isArray(paths)) setAutoRunningPaths(paths);
+            }).catch(() => setAutoRunningPaths([]));
+        }
 
         // listen for auto-organize updates from main (guarded)
         if (window.electronAPI && typeof window.electronAPI.onAutoOrganizeLog === 'function') {
-            window.electronAPI.onAutoOrganizeLog((newLog) => {
-                setLog(newLog);
+            window.electronAPI.onAutoOrganizeLog((payload) => {
+                // payload: { folderPath, log }
+                if (payload && payload.log) setLog(payload.log);
+            });
+        }
+
+        // listen for running watchers changes
+        if (window.electronAPI && typeof window.electronAPI.onAutoRunningChanged === 'function') {
+            window.electronAPI.onAutoRunningChanged((paths) => {
+                if (Array.isArray(paths)) setAutoRunningPaths(paths);
             });
         }
     }, []);
 
+    // start auto for a specific folder (or legacy first watched)
+    const startAuto = async (intervalMs = 5000, folderPath) => {
+        try {
+            // If no folderPath provided, ask main to start auto for all enabled watched folders.
+            // Previously we selected the first enabled folder locally, which resulted in only that
+            // folder being started. Let main handle starting all when folderPath is undefined.
+            let ok;
+            if (!folderPath) {
+                ok = await window.electronAPI.startAuto(undefined, intervalMs);
+            } else {
+                ok = await window.electronAPI.startAuto(folderPath, intervalMs);
+            }
+
+            if (ok) {
+                // refresh running paths from main process to get the full set
+                try {
+                    const paths = await window.electronAPI.getAutoRunning();
+                    if (Array.isArray(paths)) setAutoRunningPaths(paths);
+                } catch (e) {
+                    // fallback: if main didn't return running paths, add folderPath if provided
+                    if (folderPath) setAutoRunningPaths(prev => Array.from(new Set([...prev, folderPath])));
+                }
+            }
+            return ok;
+        } catch (err) {
+            return false;
+        }
+    };
+
+    const stopAuto = async (folderPath) => {
+        try {
+            // if folderPath not provided, stop all
+            const ok = await window.electronAPI.stopAuto(folderPath);
+            if (ok) {
+                // refresh running paths from main
+                try {
+                    const paths = await window.electronAPI.getAutoRunning();
+                    if (Array.isArray(paths)) setAutoRunningPaths(paths);
+                    else setAutoRunningPaths([]);
+                } catch (e) {
+                    if (folderPath) setAutoRunningPaths(prev => prev.filter(p => p !== folderPath));
+                    else setAutoRunningPaths([]);
+                }
+            }
+            return ok;
+        } catch (err) {
+            return false;
+        }
+    };
+
+    const isAutoRunning = () => {
+        // treat auto as running if any watcher paths are active (more robust against transient watched state changes)
+        return Array.isArray(autoRunningPaths) && autoRunningPaths.length > 0;
+    };
+
     // Add rule
     const addRule = () => {
         if (!destination) return alert("Destination required");
-        const newRule = { type, namePattern, destination };
+        const newRule = { id: `rule_${Date.now()}`, type, namePattern, destination, enabled: true };
         const updated = [...rules, newRule];
         setRules(updated);
         window.electronAPI.saveRules(updated);
         setType(""); setNamePattern(""); setDestination("");
     };
 
-    // Delete rule
-    const deleteRule = (index) => {
-        const updated = rules.filter((_, i) => i !== index);
+    // Delete rule by id
+    const deleteRule = (id) => {
+        const updated = rules.filter(r => r.id !== id);
         setRules(updated);
         window.electronAPI.saveRules(updated);
     };
 
-    // Organize files (one-off)
-    const organize = async () => {
-        if (!folder) return alert("Choose a folder");
-        const result = await window.electronAPI.organizeFiles(folder);
-        setLog(result);
+    // Watched folder helpers (multiple)
+    const removeWatched = (id) => {
+        const updated = watched.filter(w => w.id !== id);
+        setWatched(updated);
+        window.electronAPI.saveWatched(updated);
     };
 
-    // Start/stop periodic auto-organize
-    const startAuto = async (intervalMs = 5000) => {
-        if (!folder) return alert("Choose a folder");
-        if (!window.electronAPI) return alert('IPC not available');
-        const fn = window.electronAPI.startAutoOrganize || window.electronAPI.startAuto;
-        if (typeof fn !== 'function') return alert('Auto-organize API not available');
-        try {
-            await fn(folder, intervalMs);
-        } catch (err) {
-            console.error('startAuto failed', err);
-            alert('Failed to start auto-organize: ' + err.message);
+    const toggleWatchedEnabled = async (id) => {
+        const updated = watched.map(w => w.id === id ? { ...w, enabled: !w.enabled } : w);
+        setWatched(updated);
+        await window.electronAPI.saveWatched(updated);
+
+        // If a folder was just enabled and auto-organize is active, start auto for that folder immediately
+        const changed = updated.find(w => w.id === id);
+        if (changed && changed.enabled === true) {
+            try {
+                // Always refresh current running watchers from main to avoid stale state
+                const paths = await window.electronAPI.getAutoRunning();
+                if (Array.isArray(paths)) setAutoRunningPaths(paths);
+                const autoActive = Array.isArray(paths) && paths.length > 0;
+                if (autoActive) {
+                    // use per-folder interval if present, otherwise default to 5000
+                    const interval = (changed && changed.autoIntervalMs) ? changed.autoIntervalMs : 5000;
+                    await startAuto(interval, changed.path);
+                }
+            } catch (e) {
+                // fallback: if getAutoRunning fails, attempt to start the folder anyway
+                try {
+                    const interval = (changed && changed.autoIntervalMs) ? changed.autoIntervalMs : 5000;
+                    await startAuto(interval, changed.path);
+                } catch (ee) {
+                    // ignore
+                }
+            }
         }
+
+        // Previously we stopped auto for the folder when it was disabled; remove that behavior so
+        // the global Auto-Organize switch remains on until the user explicitly turns it off.
+        // (Keep persisted state only.)
     };
 
-    const stopAuto = async () => {
-        if (!window.electronAPI) return;
-        const fn = window.electronAPI.stopAutoOrganize || window.electronAPI.stopAuto;
-        if (typeof fn !== 'function') return;
-        try {
-            await fn();
-        } catch (err) {
-            console.error('stopAuto failed', err);
-        }
+    const updateWatched = (updatedEntry) => {
+        const updated = watched.map(w => w.id === updatedEntry.id ? updatedEntry : w);
+        setWatched(updated);
+        window.electronAPI.saveWatched(updated);
     };
 
-    // Pick folder
-    const pickFolder = async () => {
+    // Pick folder and add to watched
+    const pickAndAddWatched = async () => {
         const selected = await window.electronAPI.selectFolder();
-        if (selected) setFolder(selected);
+        if (!selected) return;
+        if (watched.find(w => w.path === selected)) return alert('Folder already watched');
+        const entry = { id: `folder_${Date.now()}`, path: selected, enabled: true, autoIntervalMs: 5000, ruleOverrides: {} };
+        const updated = [...watched, entry];
+        setWatched(updated);
+        window.electronAPI.saveWatched(updated);
     };
 
     return (
@@ -98,49 +195,41 @@ function App() {
                             <Folder className="w-5 h-5" />
                         </div>
                         <div>
-                            <div className="font-bold text-lg">CleanDesk</div>
+                            <h3>CleanDesk</h3>
                             <div className="text-sm text-gray-500">Organizer</div>
                         </div>
                     </div>
 
                     <nav className="space-y-2">
-                        <Link to="/" className="w-full flex items-center gap-3 px-4 py-3 bg-blue-50 text-blue-600 rounded-lg font-medium">
+                        <NavLink to="/" end className={({isActive}) => `w-full flex items-center gap-3 px-4 py-3 rounded-lg ${isActive ? 'bg-blue-50 text-blue-600 font-medium' : 'text-gray-700 hover:bg-gray-50'}`}>
                             <Home className="text-xl" /> Dashboard
-                        </Link>
-                        <Link to="/rules" className="w-full flex items-center gap-3 px-4 py-3 text-gray-700 hover:bg-gray-50 rounded-lg">
+                        </NavLink>
+                        <NavLink to="/rules" className={({isActive}) => `w-full flex items-center gap-3 px-4 py-3 rounded-lg ${isActive ? 'bg-blue-50 text-blue-600 font-medium' : 'text-gray-700 hover:bg-gray-50'}`}>
                             <FileText className="text-xl" /> Rules
-                        </Link>
-                        <Link to="/watched" className="w-full flex items-center gap-3 px-4 py-3 text-gray-700 hover:bg-gray-50 rounded-lg">
+                        </NavLink>
+                        <NavLink to="/watched" className={({isActive}) => `w-full flex items-center gap-3 px-4 py-3 rounded-lg ${isActive ? 'bg-blue-50 text-blue-600 font-medium' : 'text-gray-700 hover:bg-gray-50'}`}>
                             <Folder className="text-xl" /> Watched Folder
-                        </Link>
-                        <Link to="/auto" className="w-full flex items-center gap-3 px-4 py-3 text-gray-700 hover:bg-gray-50 rounded-lg">
-                            <RefreshCw className="text-xl" /> Auto-organize
-                        </Link>
-                        <Link to="/logs" className="w-full flex items-center gap-3 px-4 py-3 text-gray-700 hover:bg-gray-50 rounded-lg">
+                        </NavLink>
+
+                        <NavLink to="/logs" className={({isActive}) => `w-full flex items-center gap-3 px-4 py-3 rounded-lg ${isActive ? 'bg-blue-50 text-blue-600 font-medium' : 'text-gray-700 hover:bg-gray-50'}`}>
                             <List className="text-xl" /> Logs
-                        </Link>
-                        <Link to="/settings" className="w-full flex items-center gap-3 px-4 py-3 text-gray-700 hover:bg-gray-50 rounded-lg">
+                        </NavLink>
+                        <NavLink to="/settings" className={({isActive}) => `w-full flex items-center gap-3 px-4 py-3 rounded-lg ${isActive ? 'bg-blue-50 text-blue-600 font-medium' : 'text-gray-700 hover:bg-gray-50'}`}>
                             <Cog className="text-xl" /> Settings
-                        </Link>
+                        </NavLink>
                     </nav>
                 </aside>
 
                 {/* Main Content */}
                 <main className="flex-1 p-8">
                     <Routes>
-                        <Route path="/" element={<Dashboard log={log} folder={folder} pickFolder={pickFolder} organize={organize} startAuto={startAuto} stopAuto={stopAuto} />} />
+                        <Route path="/" element={<Dashboard log={log} watched={watched} startAuto={startAuto} stopAuto={stopAuto} autoRunning={isAutoRunning()} />} />
                         <Route path="/rules" element={<Rules rules={rules} addRule={addRule} deleteRule={deleteRule} type={type} setType={setType} namePattern={namePattern} setNamePattern={setNamePattern} destination={destination} setDestination={setDestination} />} />
-                        <Route path="/watched" element={<Watched folder={folder} pickFolder={pickFolder} />} />
-                        <Route path="/auto" element={<AutoOrganize />} />
+                        <Route path="/watched" element={<Watched watched={watched} removeWatched={removeWatched} toggleWatchedEnabled={toggleWatchedEnabled} pickAndAddWatched={pickAndAddWatched} updateWatched={updateWatched} rules={rules} />} />
                         <Route path="/logs" element={<Logs log={log} />} />
                         <Route path="/settings" element={<Settings />} />
+                        {/* Auto-organize page removed */}
                     </Routes>
-
-                    {/* Hidden functionality (accessible through sidebar) */}
-                    <div className="hidden">
-                        <button onClick={organize} className="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700">Organize Now</button>
-                        <button onClick={addRule} className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700">Add Rule</button>
-                    </div>
                 </main>
             </div>
         </Router>
