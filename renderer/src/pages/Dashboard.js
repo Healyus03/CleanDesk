@@ -25,7 +25,7 @@ export default function Dashboard({ log, watched = [], startAuto, stopAuto, auto
         <article className="card">
           <div className="stat">
             <div>
-              <div className="stat-value">{watched.length}</div>
+              <div className="stat-value">{Array.isArray(watched) ? watched.filter(w => (typeof w.enabled === 'undefined' || w.enabled === true)).length : 0}</div>
               <div className="stat-label">watched folders</div>
             </div>
             <div className="stat-icon"><Folder className="w-5 h-5 text-blue-600" /></div>
@@ -74,7 +74,7 @@ export default function Dashboard({ log, watched = [], startAuto, stopAuto, auto
                   <div className="text-sm text-gray-500">{l.movedTo}</div>
                 </div>
               </div>
-              <div className="recent-meta">{new Date(l.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})} ago</div>
+              <div className="recent-meta">{new Date(l.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</div>
             </article>
           ))}
 

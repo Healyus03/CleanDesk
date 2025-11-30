@@ -6,10 +6,10 @@ import IconAction from '../components/IconAction';
 export default function Watched({ watched = [], removeWatched, toggleWatchedEnabled, pickAndAddWatched, updateWatched, rules = [] }) {
   const [openOverrides, setOpenOverrides] = useState(null);
 
-  const toggleOverride = (folder, ruleId) => {
+  const toggleOverride = (folder, ruleId, currentlyEnabled) => {
     const current = folder.ruleOverrides || {};
     const next = Object.assign({}, current);
-    next[ruleId] = !next[ruleId];
+    next[ruleId] = !currentlyEnabled;
     const updated = { ...folder, ruleOverrides: next };
     updateWatched(updated);
   };
@@ -65,9 +65,14 @@ export default function Watched({ watched = [], removeWatched, toggleWatchedEnab
                         <li key={rule.id} className="flex items-center justify-between">
                           <div className="text-sm">{rule.type || rule.namePattern || rule.destination || rule.id} {inherited && <span className="text-xs text-gray-400">(inherited)</span>}</div>
                           <div>
-                            <button onClick={() => toggleOverride(w, rule.id)} className={`px-3 py-1 rounded ${enabledForFolder ? 'bg-green-100' : 'bg-red-100'}`}>
-                              {enabledForFolder ? 'Enabled' : 'Disabled'}
-                            </button>
+                            <IconToggle
+                              enabled={!!enabledForFolder}
+                              onClick={() => toggleOverride(w, rule.id, enabledForFolder)}
+                              EnabledIcon={CheckCircle}
+                              DisabledIcon={Slash}
+                              enabledTitle={enabledForFolder ? 'Disable rule for folder' : 'Enable rule for folder'}
+                              disabledTitle={enabledForFolder ? 'Disable rule for folder' : 'Enable rule for folder'}
+                            />
                           </div>
                         </li>
                       );

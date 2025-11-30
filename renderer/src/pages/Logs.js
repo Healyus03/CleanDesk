@@ -13,7 +13,7 @@ export default function Logs({ log }) {
             <article key={i} className="recent-item">
               <div>
                 <div className="font-medium">{l.file}</div>
-                <div className="recent-meta">Moved to: {l.movedTo} — {new Date(l.timestamp).toLocaleString()} {l.folder ? ` — ${l.folder}` : ''}</div>
+                <div className="recent-meta">Moved to: {l.movedTo} - {new Date(l.timestamp).toLocaleString()} {l.folder ? ` ${l.folder}` : ''}</div>
               </div>
             </article>
           ))}

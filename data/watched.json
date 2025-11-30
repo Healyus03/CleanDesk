@@ -6,18 +6,23 @@
       "enabled": true,
       "autoIntervalMs": 5000,
       "ruleOverrides": {
-        "rule_1_0a4a90cf": false,
-        "rule_1764438602855": true
+        "rule_1_0a4a90cf": true,
+        "rule_1764438602855": true,
+        "rule_1764494548318": true,
+        "rule_1764494957304": false
       }
     },
     {
       "id": "folder_1764439588324",
       "path": "C:\\Users\\circe\\Desktop\\test",
-      "enabled": true,
+      "enabled": false,
       "autoIntervalMs": 5000,
       "ruleOverrides": {
-        "rule_1_0a4a90cf": true,
-        "rule_1764438602855": true
+        "rule_1_0a4a90cf": false,
+        "rule_1764438602855": true,
+        "rule_1764494548318": true,
+        "rule_1764494957304": true,
+        "rule_1764495787645": true
       }
     }
   ]

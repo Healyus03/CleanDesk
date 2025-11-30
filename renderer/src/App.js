@@ -228,7 +228,6 @@ function App() {
                         <Route path="/watched" element={<Watched watched={watched} removeWatched={removeWatched} toggleWatchedEnabled={toggleWatchedEnabled} pickAndAddWatched={pickAndAddWatched} updateWatched={updateWatched} rules={rules} />} />
                         <Route path="/logs" element={<Logs log={log} />} />
                         <Route path="/settings" element={<Settings />} />
-                        {/* Auto-organize page removed */}
                     </Routes>
                 </main>
             </div>
