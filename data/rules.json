@@ -12,5 +12,12 @@
     "namePattern": "",
     "destination": "Pdfs",
     "enabled": true
+  },
+  {
+    "id": "rule_1764757443959",
+    "type": ".txt",
+    "namePattern": "texts",
+    "destination": "textss",
+    "enabled": true
   }
 ]

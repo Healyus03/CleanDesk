@@ -1,29 +1,11 @@
 {
   "watched": [
     {
-      "id": "folder_1764438566953",
-      "path": "C:\\Users\\circe\\Desktop\\tes2",
+      "id": "folder_1764757301914",
+      "path": "C:\\Users\\Cebbe\\Desktop\\testfolder",
       "enabled": true,
       "autoIntervalMs": 5000,
-      "ruleOverrides": {
-        "rule_1_0a4a90cf": true,
-        "rule_1764438602855": true,
-        "rule_1764494548318": true,
-        "rule_1764494957304": false
-      }
-    },
-    {
-      "id": "folder_1764439588324",
-      "path": "C:\\Users\\circe\\Desktop\\test",
-      "enabled": false,
-      "autoIntervalMs": 5000,
-      "ruleOverrides": {
-        "rule_1_0a4a90cf": false,
-        "rule_1764438602855": true,
-        "rule_1764494548318": true,
-        "rule_1764494957304": true,
-        "rule_1764495787645": true
-      }
+      "ruleOverrides": {}
     }
   ]
 }

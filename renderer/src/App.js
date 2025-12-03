@@ -11,6 +11,57 @@ import Watched from './pages/Watched';
 import Logs from './pages/Logs';
 import Settings from './pages/Settings';
 
+/**
+ * App component - top-level React component for the renderer UI.
+ *
+ * Responsibilities:
+ *  - Manage local UI state (rules, watched folders, logs, form inputs)
+ *  - Interact with the main process via window.electronAPI for persistence
+ *    and background "auto organize" control
+ *  - Provide helper functions to start/stop auto organize and manage rules/watched list
+ *
+ * Public (rendered) exports:
+ *  - default App()
+ *
+ * Internal helper functions (signatures & summary):
+ *  - startAuto(intervalMs?: number, folderPath?: string): Promise<boolean>
+ *      Start auto-organize globally or for a specific folder. Returns true on success.
+ *
+ *  - stopAuto(folderPath?: string): Promise<boolean>
+ *      Stop auto-organize globally or for a specific folder. Returns true on success.
+ *
+ *  - isAutoRunning(): boolean
+ *      Returns whether any auto-organize watchers are currently active.
+ *
+ *  - addRule(): void
+ *      Create a rule from the form inputs, persist to main process, and reset inputs.
+ *
+ *  - deleteRule(id: string): void
+ *      Delete a rule by id and persist change.
+ *
+ *  - removeWatched(id: string): void
+ *      Remove a watched folder entry and persist change.
+ *
+ *  - toggleWatchedEnabled(id: string): Promise<void>
+ *      Toggle the enabled flag for a watched folder, persist change, and if enabling
+ *      and auto-organize is active, start auto for that folder.
+ *
+ *  - updateWatched(updatedEntry): void
+ *      Replace a watched entry with an updated version and persist change.
+ *
+ *  - pickAndAddWatched(): Promise<void>
+ *      Launches folder picker (IPC), creates a watched entry and persists it.
+ *
+ * IPC surface expected on window.electronAPI (used by this file):
+ *  - loadRules(), saveRules(rules)
+ *  - loadLog()
+ *  - loadWatched(), saveWatched(list)
+ *  - selectFolder()
+ *  - startAuto(folderPath?, intervalMs?), stopAuto(folderPath?)
+ *  - getAutoRunning()
+ *  - onAutoOrganizeLog(cb), onAutoRunningChanged(cb)
+ */
+
 function App() {
     const [rules, setRules] = useState([]);
     const [log, setLog] = useState([]);
@@ -58,9 +109,6 @@ function App() {
     // start auto for a specific folder (or legacy first watched)
     const startAuto = async (intervalMs = 5000, folderPath) => {
         try {
-            // If no folderPath provided, ask main to start auto for all enabled watched folders.
-            // Previously we selected the first enabled folder locally, which resulted in only that
-            // folder being started. Let main handle starting all when folderPath is undefined.
             let ok;
             if (!folderPath) {
                 ok = await window.electronAPI.startAuto(undefined, intervalMs);
@@ -106,7 +154,7 @@ function App() {
     };
 
     const isAutoRunning = () => {
-        // treat auto as running if any watcher paths are active (more robust against transient watched state changes)
+        // treat auto as running if any watcher paths are active
         return Array.isArray(autoRunningPaths) && autoRunningPaths.length > 0;
     };
 

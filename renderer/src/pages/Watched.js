@@ -63,7 +63,7 @@ export default function Watched({ watched = [], removeWatched, toggleWatchedEnab
                       const enabledForFolder = inherited ? (rule.enabled !== false) : val;
                       return (
                         <li key={rule.id} className="flex items-center justify-between">
-                          <div className="text-sm">{rule.type || rule.namePattern || rule.destination || rule.id} {inherited && <span className="text-xs text-gray-400">(inherited)</span>}</div>
+                          <div className="text-sm">{`Type: ${rule.type || '(any)'} - Namepattern: ${rule.namePattern || '(any)'}`} {inherited && <span className="text-xs text-gray-400">(inherited)</span>}</div>
                           <div>
                             <IconToggle
                               enabled={!!enabledForFolder}
@@ -87,3 +87,4 @@ export default function Watched({ watched = [], removeWatched, toggleWatchedEnab
     </main>
   );
 }
+

@@ -10,15 +10,15 @@ export default function Rules({ rules, addRule, deleteRule, type, setType, nameP
       <section className="card mb-6">
         <div className="mb-4">
           <label className="block text-sm text-gray-700">Type</label>
-          <input value={type} onChange={e => setType(e.target.value)} className="mt-1 block w-full rounded-md border-gray-200 shadow-sm p-2" />
+          <input value={type} onChange={e => setType(e.target.value)} placeholder="File extension (include leading dot), e.g. .png" className="mt-1 block w-full rounded-md border-gray-200 shadow-sm p-2" />
         </div>
         <div className="mb-4">
           <label className="block text-sm text-gray-700">Name pattern</label>
-          <input value={namePattern} onChange={e => setNamePattern(e.target.value)} className="mt-1 block w-full rounded-md border-gray-200 shadow-sm p-2" />
+          <input value={namePattern} onChange={e => setNamePattern(e.target.value)} placeholder="Name prefix (startsWith), e.g. invoice_" className="mt-1 block w-full rounded-md border-gray-200 shadow-sm p-2" />
         </div>
         <div className="mb-4">
           <label className="block text-sm text-gray-700">Destination</label>
-          <input value={destination} onChange={e => setDestination(e.target.value)} className="mt-1 block w-full rounded-md border-gray-200 shadow-sm p-2" />
+          <input value={destination} onChange={e => setDestination(e.target.value)} placeholder="Enter preferred folder name:" className="mt-1 block w-full rounded-md border-gray-200 shadow-sm p-2" />
         </div>
         <div className="flex gap-2">
           <button onClick={addRule} className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700">Add Rule</button>
@@ -31,7 +31,7 @@ export default function Rules({ rules, addRule, deleteRule, type, setType, nameP
           {rules.map((r) => (
             <article key={r.id || r.destination} className="recent-item flex items-center justify-between">
               <div>
-                <div className="font-medium">{r.type} — {r.namePattern}</div>
+                <div className="font-medium">{`Type: ${r.type || '(any)'} - Namepattern: ${r.namePattern || '(any)'}`}</div>
                 <div className="recent-meta">{r.destination}</div>
               </div>
               <div className="flex items-center gap-3">
