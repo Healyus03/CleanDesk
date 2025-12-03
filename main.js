@@ -34,7 +34,26 @@ function createWindow() {
         }
     });
 
-    mainWindow.loadURL("http://localhost:3000");
+    // Load URL depending on whether the app is packaged or running in dev mode.
+    // During development we run a CRA dev server at http://localhost:3000.
+    // When packaged, the renderer build is included in the asar archive
+    const startUrl = app.isPackaged
+        ? `file://${path.join(__dirname, 'renderer', 'build', 'index.html')}`
+        : 'http://localhost:3000';
+
+    mainWindow.loadURL(startUrl);
+
+    // Open DevTools to debug
+    mainWindow.webContents.openDevTools();
+
+    // Log any loading errors
+    mainWindow.webContents.on('did-fail-load', (event, errorCode, errorDescription, validatedURL) => {
+        console.error('Failed to load:', validatedURL, errorCode, errorDescription);
+    });
+
+    mainWindow.webContents.on('did-finish-load', () => {
+        console.log('Page loaded successfully');
+    });
 }
 
 app.whenReady().then(createWindow);
