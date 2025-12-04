@@ -16,9 +16,67 @@ const path = require("path");
 const fs = require("fs");
 const crypto = require('crypto');
 
-const RULES_FILE = path.join(__dirname, "data/rules.json");
-const LOG_FILE = path.join(__dirname, "data/log.json");
-const WATCHED_FILE = path.join(__dirname, "data/watched.json");
+// Handle Squirrel events for Windows installer
+if (require('electron-squirrel-startup')) {
+    app.quit();
+}
+
+// Handle Squirrel installation events to create shortcuts
+if (process.platform === 'win32') {
+    const handleSquirrelEvent = () => {
+        if (process.argv.length === 1) {
+            return false;
+        }
+
+        const squirrelEvent = process.argv[1];
+        const appFolder = path.resolve(process.execPath, '..');
+        const rootAtomFolder = path.resolve(appFolder, '..');
+        const updateDotExe = path.resolve(path.join(rootAtomFolder, 'Update.exe'));
+        const exeName = path.basename(process.execPath);
+
+        const spawn = function(command, args) {
+            let spawnedProcess;
+            try {
+                spawnedProcess = require('child_process').spawn(command, args, { detached: true });
+            } catch (error) {}
+            return spawnedProcess;
+        };
+
+        const spawnUpdate = function(args) {
+            return spawn(updateDotExe, args);
+        };
+
+        switch (squirrelEvent) {
+            case '--squirrel-install':
+            case '--squirrel-updated':
+                // Install desktop and start menu shortcuts
+                spawnUpdate(['--createShortcut', exeName]);
+                setTimeout(app.quit, 1000);
+                return true;
+
+            case '--squirrel-uninstall':
+                // Remove desktop and start menu shortcuts
+                spawnUpdate(['--removeShortcut', exeName]);
+                setTimeout(app.quit, 1000);
+                return true;
+
+            case '--squirrel-obsolete':
+                app.quit();
+                return true;
+        }
+        return false;
+    };
+
+    if (handleSquirrelEvent()) {
+        process.exit(0);
+    }
+}
+
+let DATA_DIR;
+let RULES_FILE;
+let LOG_FILE;
+let WATCHED_FILE;
+let PACKAGED_DATA_DIR; // will be set during app.whenReady()
 
 let mainWindow = null;
 const watchers = new Map();
@@ -27,24 +85,26 @@ function createWindow() {
     mainWindow = new BrowserWindow({
         width: 800,
         height: 600,
+        autoHideMenuBar: true,
         webPreferences: {
             nodeIntegration: false,
             contextIsolation: true,
-            preload: path.join(__dirname, "preload.js")
+            preload: path.join(__dirname, "preload.js"),
+            devTools: !app.isPackaged // disable DevTools in packaged builds
         }
     });
 
     // Load URL depending on whether the app is packaged or running in dev mode.
     // During development we run a CRA dev server at http://localhost:3000.
     // When packaged, the renderer build is included in the asar archive
-    const startUrl = app.isPackaged
-        ? `file://${path.join(__dirname, 'renderer', 'build', 'index.html')}`
-        : 'http://localhost:3000';
-
-    mainWindow.loadURL(startUrl);
-
-    // Open DevTools to debug
-    mainWindow.webContents.openDevTools();
+    if (app.isPackaged) {
+        // Use loadFile when packaged to avoid issues with file:// URL resolution
+        mainWindow.loadFile(path.join(__dirname, 'renderer', 'build', 'index.html'))
+            .catch(err => console.error('Failed to load packaged index.html', err));
+    } else {
+        mainWindow.loadURL('http://localhost:3000')
+            .catch(err => console.error('Failed to load dev server at http://localhost:3000', err));
+    }
 
     // Log any loading errors
     mainWindow.webContents.on('did-fail-load', (event, errorCode, errorDescription, validatedURL) => {
@@ -56,32 +116,74 @@ function createWindow() {
     });
 }
 
-app.whenReady().then(createWindow);
+// Helper to create user data files if missing
+function ensureDataFiles() {
+    if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
+    if (!fs.existsSync(RULES_FILE)) fs.writeFileSync(RULES_FILE, JSON.stringify([]));
+    if (!fs.existsSync(LOG_FILE)) fs.writeFileSync(LOG_FILE, JSON.stringify([]));
+    if (!fs.existsSync(WATCHED_FILE)) fs.writeFileSync(WATCHED_FILE, JSON.stringify({ watched: [] }, null, 2));
+}
 
-// ensure files exist
-if (!fs.existsSync(RULES_FILE)) fs.writeFileSync(RULES_FILE, JSON.stringify([]));
-if (!fs.existsSync(LOG_FILE)) fs.writeFileSync(LOG_FILE, JSON.stringify([]));
-if (!fs.existsSync(WATCHED_FILE)) fs.writeFileSync(WATCHED_FILE, JSON.stringify({ watched: [] }, null, 2));
+// Migrate packaged data files (first-run): copy from app folder to userData if user files don't exist
+function migratePackagedDataIfNeeded() {
+    try {
+        if (!fs.existsSync(PACKAGED_DATA_DIR)) return;
+        const packagedRules = path.join(PACKAGED_DATA_DIR, 'rules.json');
+        const packagedLog = path.join(PACKAGED_DATA_DIR, 'log.json');
+        const packagedWatched = path.join(PACKAGED_DATA_DIR, 'watched.json');
+
+        if (!fs.existsSync(RULES_FILE) && fs.existsSync(packagedRules)) fs.copyFileSync(packagedRules, RULES_FILE);
+        if (!fs.existsSync(LOG_FILE) && fs.existsSync(packagedLog)) fs.copyFileSync(packagedLog, LOG_FILE);
+        if (!fs.existsSync(WATCHED_FILE) && fs.existsSync(packagedWatched)) fs.copyFileSync(packagedWatched, WATCHED_FILE);
+    } catch (e) {
+        console.error('Error migrating packaged data:', e);
+    }
+}
 
 // ensure rules have stable ids and enabled flag
 function ensureRulesHaveIds() {
-    let rules = JSON.parse(fs.readFileSync(RULES_FILE));
-    let changed = false;
-    rules = rules.map((r, idx) => {
-        const copy = Object.assign({}, r);
-        if (!copy.id) {
-            copy.id = copy.name ? `${copy.name.replace(/\s+/g, '_')}_${idx}` : `rule_${idx + 1}_${crypto.randomBytes(4).toString('hex')}`;
-            changed = true;
-        }
-        if (typeof copy.enabled === 'undefined') {
-            copy.enabled = true;
-            changed = true;
-        }
-        return copy;
-    });
-    if (changed) fs.writeFileSync(RULES_FILE, JSON.stringify(rules, null, 2));
+    try {
+        let rules = JSON.parse(fs.readFileSync(RULES_FILE));
+        let changed = false;
+        rules = rules.map((r, idx) => {
+            const copy = Object.assign({}, r);
+            if (!copy.id) {
+                copy.id = copy.name ? `${copy.name.replace(/\s+/g, '_')}_${idx}` : `rule_${idx + 1}_${crypto.randomBytes(4).toString('hex')}`;
+                changed = true;
+            }
+            if (typeof copy.enabled === 'undefined') {
+                copy.enabled = true;
+                changed = true;
+            }
+            return copy;
+        });
+        if (changed) fs.writeFileSync(RULES_FILE, JSON.stringify(rules, null, 2));
+    } catch (e) {
+        console.error('ensureRulesHaveIds error:', e);
+    }
 }
-ensureRulesHaveIds();
+
+// Move app startup initialization to whenReady so we can use app.getPath('userData')
+app.whenReady().then(() => {
+    DATA_DIR = path.join(app.getPath('userData'), 'data'); // per-user writable data dir
+    RULES_FILE = path.join(DATA_DIR, "rules.json");
+    LOG_FILE = path.join(DATA_DIR, "log.json");
+    WATCHED_FILE = path.join(DATA_DIR, "watched.json");
+
+    // Determine packaged data directory properly: when packaged, resources are in process.resourcesPath
+    if (app.isPackaged) {
+        PACKAGED_DATA_DIR = path.join(process.resourcesPath, 'data');
+    } else {
+        PACKAGED_DATA_DIR = path.join(__dirname, 'data');
+    }
+
+    // If packaged files exist in the app folder, copy them to user data on first run
+    migratePackagedDataIfNeeded();
+    ensureDataFiles();
+    ensureRulesHaveIds();
+
+    createWindow();
+});
 
 function readWatched() {
     try {
@@ -330,3 +432,28 @@ ipcMain.handle('get-auto-running', async () => {
         return [];
     }
 });
+
+ipcMain.handle('get-autostart-enabled', async () => {
+    try {
+        const settings = app.getLoginItemSettings();
+        return settings.openAtLogin;
+    } catch (err) {
+        return false;
+    }
+});
+
+ipcMain.handle('set-autostart-enabled', async (_, enabled) => {
+    try {
+        app.setLoginItemSettings({
+            openAtLogin: enabled,
+            openAsHidden: false,
+            path: process.execPath,
+            args: []
+        });
+        return true;
+    } catch (err) {
+        console.error('Failed to set autostart:', err);
+        return false;
+    }
+});
+

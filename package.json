@@ -1,6 +1,7 @@
 {
   "name": "cleandesk",
-  "version": "1.0.0",
+  "productName": "CleanDesk",
+  "version": "1.0.1",
   "description": "CleanDesk — automatic file organizer desktop app",
   "main": "main.js",
   "scripts": {
@@ -9,21 +10,24 @@
     "start:electron": "wait-on http://localhost:3000 && electron .",
     "build:renderer": "npm run build --prefix renderer",
     "package": "electron-forge package",
-    "make": "electron-forge make --platform=win32 --arch=x64"
+    "make": "electron-forge make --platform=win32 --arch=x64",
+    "dist": "npm run build:renderer && electron-forge make --platform=win32 --arch=x64"
   },
   "keywords": [],
   "author": "Cebbe",
   "license": "ISC",
   "type": "commonjs",
   "dependencies": {
-    "chokidar": "^3.5.3"
+    "chokidar": "^3.5.3",
+    "electron-squirrel-startup": "^1.0.1"
   },
   "devDependencies": {
-    "concurrently": "^9.2.1",
-    "electron": "^39.2.4",
-    "wait-on": "^9.0.3",
     "@electron-forge/cli": "^6.0.0",
     "@electron-forge/maker-squirrel": "^6.0.0",
-    "@electron-forge/maker-zip": "^6.0.0"
+    "@electron-forge/maker-wix": "^6.0.0",
+    "@electron-forge/maker-zip": "^6.0.0",
+    "concurrently": "^9.2.1",
+    "electron": "^39.2.4",
+    "wait-on": "^9.0.3"
   }
 }

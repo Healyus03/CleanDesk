@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Wix xmlns="http://schemas.microsoft.com/wix/2006/wi">
+  <Fragment>
+    <!-- Put the Component under the INSTALLFOLDER so it ties to the application install directory -->
+    <DirectoryRef Id="INSTALLFOLDER">
+      <Component Id="AutoStartRegistry" Guid="A1B2C3D4-E5F6-4A5B-9C8D-7E6F5A4B3C2D">
+        <!-- Create the Run registry entry in HKCU for automatic startup -->
+        <RegistryValue Root="HKCU"
+                       Key="Software\Microsoft\Windows\CurrentVersion\Run"
+                       Name="CleanDesk"
+                       Value="[INSTALLFOLDER]CleanDesk.exe"
+                       Type="string"
+                       KeyPath="yes" />
+      </Component>
+    </DirectoryRef>
+
+    <!-- Expose the component via a component group so the main Product can reference it -->
+    <ComponentGroup Id="AutoStartGroup">
+      <ComponentRef Id="AutoStartRegistry" />
+    </ComponentGroup>
+  </Fragment>
+</Wix>
+

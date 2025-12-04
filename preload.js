@@ -18,6 +18,8 @@ contextBridge.exposeInMainWorld("electronAPI", {
     getAutoRunning: () => safeInvoke('get-auto-running'),
     loadWatched: () => safeInvoke('load-watched'),
     saveWatched: (watched) => safeInvoke('save-watched', watched),
+    getAutostartEnabled: () => safeInvoke('get-autostart-enabled'),
+    setAutostartEnabled: (enabled) => safeInvoke('set-autostart-enabled', enabled),
     onAutoOrganizeLog: (cb) => {
         if (ipcRenderer && typeof ipcRenderer.on === 'function') {
             // payload now is { folderPath, log }
