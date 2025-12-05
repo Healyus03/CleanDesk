@@ -5,8 +5,11 @@ module.exports = {
     asar: true,
     prune: true,
     executableName: 'CleanDesk',
-    // include the data folder as an extra resource so packaged defaults are available at runtime
-    extraResource: [path.resolve(__dirname, 'data')],
+    // include the data folder and the app icon as extra resources so packaged defaults are available at runtime
+    extraResource: [
+      path.resolve(__dirname, 'data'),
+      path.resolve(__dirname, 'CleanDesk.ico')
+    ],
     ignore: [
       /^\/renderer\/src/,
       /^\/renderer\/public/,

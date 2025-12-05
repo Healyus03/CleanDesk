@@ -15,61 +15,105 @@ const { app, BrowserWindow, ipcMain, dialog } = require("electron");
 const path = require("path");
 const fs = require("fs");
 const crypto = require('crypto');
+const { Tray, Menu, nativeImage } = require('electron');
 
-// Handle Squirrel events for Windows installer
-if (require('electron-squirrel-startup')) {
-    app.quit();
+let appTray = null;
+
+// Stop all auto-organize watchers (used by tray toggle and IPC)
+async function stopAllAuto() {
+    try {
+        for (const [p, state] of Array.from(watchers.entries())) {
+            try { if (state.watcher) await state.watcher.close(); } catch (e) {}
+            if (state.debounceTimer) clearTimeout(state.debounceTimer);
+            if (state.autoInterval) clearInterval(state.autoInterval);
+            watchers.delete(p);
+        }
+    } catch (e) {
+        console.error('stopAllAuto error', e);
+    }
+    // Broadcast new state
+    emitAutoRunning();
 }
 
-// Handle Squirrel installation events to create shortcuts
-if (process.platform === 'win32') {
-    const handleSquirrelEvent = () => {
-        if (process.argv.length === 1) {
-            return false;
-        }
+// Build/update the tray menu so it reflects whether auto-organize is running
+function updateTrayMenu() {
+    if (!appTray) return;
+    const autoOn = (watchers && watchers.size > 0);
 
-        const squirrelEvent = process.argv[1];
-        const appFolder = path.resolve(process.execPath, '..');
-        const rootAtomFolder = path.resolve(appFolder, '..');
-        const updateDotExe = path.resolve(path.join(rootAtomFolder, 'Update.exe'));
-        const exeName = path.basename(process.execPath);
+    const template = [
+        {
+            label: 'Show CleanDesk', click: () => {
+                if (!mainWindow) createWindow(); else { mainWindow.show(); mainWindow.focus(); }
+            }
+        },
+        { type: 'separator' },
+        {
+            label: 'Auto-organize', type: 'checkbox', checked: autoOn, click: async () => {
+                try {
+                    if (autoOn) {
+                        await stopAllAuto();
+                    } else {
+                        await startAutoFromWatched();
+                    }
+                } catch (e) {
+                    console.error('Failed to toggle auto-organize from tray', e);
+                }
+                // Rebuild menu after toggling
+                try { updateTrayMenu(); } catch (e) {}
+            }
+        },
+        { type: 'separator' },
+        { label: 'Quit', click: () => { app.quit(); } }
+    ];
 
-        const spawn = function(command, args) {
-            let spawnedProcess;
-            try {
-                spawnedProcess = require('child_process').spawn(command, args, { detached: true });
-            } catch (error) {}
-            return spawnedProcess;
-        };
-
-        const spawnUpdate = function(args) {
-            return spawn(updateDotExe, args);
-        };
-
-        switch (squirrelEvent) {
-            case '--squirrel-install':
-            case '--squirrel-updated':
-                // Install desktop and start menu shortcuts
-                spawnUpdate(['--createShortcut', exeName]);
-                setTimeout(app.quit, 1000);
-                return true;
-
-            case '--squirrel-uninstall':
-                // Remove desktop and start menu shortcuts
-                spawnUpdate(['--removeShortcut', exeName]);
-                setTimeout(app.quit, 1000);
-                return true;
-
-            case '--squirrel-obsolete':
-                app.quit();
-                return true;
-        }
-        return false;
-    };
-
-    if (handleSquirrelEvent()) {
-        process.exit(0);
+    try {
+        const menu = Menu.buildFromTemplate(template);
+        appTray.setContextMenu(menu);
+    } catch (e) {
+        console.error('Failed to set tray menu', e);
     }
+}
+
+function createTray() {
+    // Use only the single dedicated Windows icon file in project root.
+    const icoPath = path.join(__dirname, 'CleanDesk.ico');
+
+    if (!fs.existsSync(icoPath)) {
+        console.error('CleanDesk.ico not found at expected path:', icoPath);
+        appTray = null;
+        return;
+    }
+
+    let trayIconImage = null;
+    try {
+        trayIconImage = nativeImage.createFromPath(icoPath);
+        if (!trayIconImage || trayIconImage.isEmpty()) {
+            console.error('Loaded CleanDesk.ico but nativeImage is empty:', icoPath);
+            appTray = null;
+            return;
+        }
+    } catch (e) {
+        console.error('Failed to create nativeImage from CleanDesk.ico:', e);
+        appTray = null;
+        return;
+    }
+
+    try {
+        // For .ico files, keep their embedded sizes; do not attempt multi-fallback resizing.
+        appTray = new Tray(trayIconImage);
+    } catch (e) {
+        console.error('Failed to create Tray from CleanDesk.ico:', e);
+        appTray = null;
+        return;
+    }
+
+    appTray.setToolTip('CleanDesk');
+    appTray.on('double-click', () => {
+        if (!mainWindow) createWindow(); else { mainWindow.show(); mainWindow.focus(); }
+    });
+
+    // Initial population of tray menu
+    updateTrayMenu();
 }
 
 let DATA_DIR;
@@ -113,6 +157,7 @@ function createWindow() {
 
     mainWindow.webContents.on('did-finish-load', () => {
         console.log('Page loaded successfully');
+        try { mainWindow.webContents.closeDevTools(); } catch (e) {}
     });
 }
 
@@ -182,7 +227,18 @@ app.whenReady().then(() => {
     ensureDataFiles();
     ensureRulesHaveIds();
 
-    createWindow();
+    // Create the tray first so the app always has an icon in the tray
+    createTray();
+
+    // If the app was launched with --hidden (we register this when enabling autostart),
+    // don't show the main window — run quietly in the background with tray icon only.
+    const startedHidden = process.argv.includes('--hidden');
+    if (!startedHidden) {
+        createWindow();
+    } else {
+        // Start background auto-organize for any watched folders so the app actually does its job while hidden
+        startAutoFromWatched();
+    }
 });
 
 function readWatched() {
@@ -315,6 +371,8 @@ function emitAutoRunning() {
         }
     } catch (e) {
     }
+    // Update the tray menu to reflect running state
+    try { if (appTray) updateTrayMenu(); } catch (e) {}
 }
 
 async function startAutoForPath(folderPath, intervalMs = 5000) {
@@ -372,6 +430,22 @@ async function startAutoForPath(folderPath, intervalMs = 5000) {
         emitAutoRunning();
         return true;
     }
+}
+
+async function startAutoFromWatched() {
+    try {
+        const watchedList = readWatched();
+        if (!Array.isArray(watchedList) || watchedList.length === 0) return;
+        for (const w of watchedList) {
+            if (w && (typeof w.enabled === 'undefined' || w.enabled === true) && w.path) {
+                try { await startAutoForPath(w.path); } catch (e) { console.error('Failed to start watcher for', w.path, e); }
+            }
+        }
+    } catch (e) {
+        console.error('startAutoFromWatched error', e);
+    }
+    // Ensure UI/menu is updated when watchers start
+    emitAutoRunning();
 }
 
 ipcMain.handle("start-auto-organize", async (_, folderPath, intervalMs = 5000) => {
@@ -444,16 +518,24 @@ ipcMain.handle('get-autostart-enabled', async () => {
 
 ipcMain.handle('set-autostart-enabled', async (_, enabled) => {
     try {
-        app.setLoginItemSettings({
-            openAtLogin: enabled,
-            openAsHidden: false,
-            path: process.execPath,
-            args: []
-        });
+        if (enabled) {
+            // Register the app to open at login and pass a flag so we can keep it hidden at startup
+            app.setLoginItemSettings({
+                openAtLogin: true,
+                openAsHidden: true,
+                path: process.execPath,
+                args: ['--hidden']
+            });
+        } else {
+            app.setLoginItemSettings({
+                openAtLogin: false,
+                path: process.execPath,
+                args: []
+            });
+        }
         return true;
     } catch (err) {
         console.error('Failed to set autostart:', err);
         return false;
     }
 });
-
