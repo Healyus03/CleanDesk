@@ -81,6 +81,7 @@ const crypto = require('crypto');
 const { Tray, Menu, nativeImage } = require('electron');
 
 let appTray = null;
+let isQuitting = false;
 
 // Stop all auto-organize watchers (used by tray toggle and IPC)
 async function stopAllAuto() {
@@ -126,7 +127,7 @@ function updateTrayMenu() {
             }
         },
         { type: 'separator' },
-        { label: 'Quit', click: () => { app.quit(); } }
+        { label: 'Quit', click: () => { isQuitting = true; app.quit(); } }
     ];
 
     try {
@@ -183,7 +184,6 @@ let DATA_DIR;
 let RULES_FILE;
 let LOG_FILE;
 let WATCHED_FILE;
-let PACKAGED_DATA_DIR; // will be set during app.whenReady()
 
 let mainWindow = null;
 const watchers = new Map();
@@ -193,6 +193,7 @@ function createWindow() {
         width: 800,
         height: 600,
         autoHideMenuBar: true,
+        icon: path.join(__dirname, 'CleanDesk.ico'),
         webPreferences: {
             nodeIntegration: false,
             contextIsolation: true,
@@ -222,6 +223,20 @@ function createWindow() {
         console.log('Page loaded successfully');
         try { mainWindow.webContents.closeDevTools(); } catch (e) {}
     });
+
+    // When the user closes the window, hide it to the tray instead of quitting the whole app.
+    // The app will only quit when the tray menu's Quit item is used (which sets isQuitting = true).
+    mainWindow.on('close', (e) => {
+        if (!isQuitting) {
+            e.preventDefault();
+            try { mainWindow.hide(); } catch (err) {}
+        }
+    });
+
+    // Cleanup reference when actually closed (i.e., when quitting)
+    mainWindow.on('closed', () => {
+        mainWindow = null;
+    });
 }
 
 // Helper to create user data files if missing
@@ -232,21 +247,7 @@ function ensureDataFiles() {
     if (!fs.existsSync(WATCHED_FILE)) fs.writeFileSync(WATCHED_FILE, JSON.stringify({ watched: [] }, null, 2));
 }
 
-// Migrate packaged data files (first-run): copy from app folder to userData if user files don't exist
-function migratePackagedDataIfNeeded() {
-    try {
-        if (!fs.existsSync(PACKAGED_DATA_DIR)) return;
-        const packagedRules = path.join(PACKAGED_DATA_DIR, 'rules.json');
-        const packagedLog = path.join(PACKAGED_DATA_DIR, 'log.json');
-        const packagedWatched = path.join(PACKAGED_DATA_DIR, 'watched.json');
-
-        if (!fs.existsSync(RULES_FILE) && fs.existsSync(packagedRules)) fs.copyFileSync(packagedRules, RULES_FILE);
-        if (!fs.existsSync(LOG_FILE) && fs.existsSync(packagedLog)) fs.copyFileSync(packagedLog, LOG_FILE);
-        if (!fs.existsSync(WATCHED_FILE) && fs.existsSync(packagedWatched)) fs.copyFileSync(packagedWatched, WATCHED_FILE);
-    } catch (e) {
-        console.error('Error migrating packaged data:', e);
-    }
-}
+// No default packaged data - users start with empty files
 
 // ensure rules have stable ids and enabled flag
 function ensureRulesHaveIds() {
@@ -278,15 +279,7 @@ app.whenReady().then(() => {
     LOG_FILE = path.join(DATA_DIR, "log.json");
     WATCHED_FILE = path.join(DATA_DIR, "watched.json");
 
-    // Determine packaged data directory properly: when packaged, resources are in process.resourcesPath
-    if (app.isPackaged) {
-        PACKAGED_DATA_DIR = path.join(process.resourcesPath, 'data');
-    } else {
-        PACKAGED_DATA_DIR = path.join(__dirname, 'data');
-    }
-
-    // If packaged files exist in the app folder, copy them to user data on first run
-    migratePackagedDataIfNeeded();
+    // Initialize data files with empty defaults
     ensureDataFiles();
     ensureRulesHaveIds();
 

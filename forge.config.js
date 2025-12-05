@@ -5,9 +5,13 @@ module.exports = {
     asar: true,
     prune: true,
     executableName: 'CleanDesk',
-    // include the data folder and the app icon as extra resources so packaged defaults are available at runtime
+    icon: path.resolve(__dirname, 'CleanDesk.ico'),
+    win32metadata: {
+      CompanyName: 'Cebbe',
+      FileDescription: 'CleanDesk — automatic file organizer desktop app',
+      ProductName: 'CleanDesk'
+    },
     extraResource: [
-      path.resolve(__dirname, 'data'),
       path.resolve(__dirname, 'CleanDesk.ico')
     ],
     ignore: [
