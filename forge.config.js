@@ -27,11 +27,14 @@ module.exports = {
     {
       name: "@electron-forge/maker-squirrel",
       config: {
-        name: "CleanDesk",
+        name: "cleandesk",
         authors: "Cebbe",
         description: "CleanDesk — automatic file organizer desktop app",
         setupExe: "CleanDesk-Setup.exe",
-        setupIcon: path.resolve(__dirname, 'renderer', 'public', 'favicon.ico')
+        setupIcon: path.resolve(__dirname, 'CleanDesk.ico'),
+        iconUrl: path.resolve(__dirname, 'CleanDesk.ico'),
+        exe: 'CleanDesk.exe',
+        noMsi: true
       }
     },
     {

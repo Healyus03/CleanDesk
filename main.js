@@ -11,7 +11,70 @@ Main functions and responsibilities:
 - startAutoForPath(folderPath, intervalMs): start watching a folder using chokidar if available, otherwise poll. (fallback)
 - IPC handlers: load/save rules, logs, select folder, load/save watched list, start/stop auto-organize, get-auto-running.
 */
+
+// Handle Squirrel events (installation, updates, uninstallation) on Windows
+// This will quit the app after handling installation/update events
+if (require('electron-squirrel-startup')) {
+  process.exit(0);
+}
+
 const { app, BrowserWindow, ipcMain, dialog } = require("electron");
+
+// Additional Squirrel event handling for Windows installer
+if (process.platform === 'win32') {
+  const handleSquirrelEvent = () => {
+    if (process.argv.length === 1) {
+      return false;
+    }
+
+    const appFolder = require('path').resolve(process.execPath, '..');
+    const rootAtomFolder = require('path').resolve(appFolder, '..');
+    const updateDotExe = require('path').resolve(rootAtomFolder, 'Update.exe');
+    const exeName = require('path').basename(process.execPath);
+
+    const spawn = function(command, args) {
+      let spawnedProcess;
+      try {
+        spawnedProcess = require('child_process').spawn(command, args, { detached: true });
+      } catch (error) {
+        console.error('Spawn error:', error);
+      }
+      return spawnedProcess;
+    };
+
+    const spawnUpdate = function(args) {
+      return spawn(updateDotExe, args);
+    };
+
+    const squirrelEvent = process.argv[1];
+    switch (squirrelEvent) {
+      case '--squirrel-install':
+      case '--squirrel-updated':
+        // Create shortcuts on install/update
+        spawnUpdate(['--createShortcut', exeName]);
+        setTimeout(() => process.exit(0), 1000);
+        return true;
+
+      case '--squirrel-uninstall':
+        // Remove shortcuts on uninstall
+        spawnUpdate(['--removeShortcut', exeName]);
+        setTimeout(() => process.exit(0), 1000);
+        return true;
+
+      case '--squirrel-obsolete':
+        // This is called when the installer is done with the old version
+        process.exit(0);
+        return true;
+    }
+
+    return false;
+  };
+
+  if (handleSquirrelEvent()) {
+    // Squirrel event handled, app will quit
+    process.exit(0);
+  }
+}
 const path = require("path");
 const fs = require("fs");
 const crypto = require('crypto');
