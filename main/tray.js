@@ -89,13 +89,6 @@ class TrayManager {
     }
 
     /**
-     * Get the tray instance
-     */
-    getTray() {
-        return this.appTray;
-    }
-
-    /**
      * Set quitting flag
      */
     setQuitting(value) {
@@ -107,20 +100,6 @@ class TrayManager {
      */
     isAppQuitting() {
         return this.isQuitting;
-    }
-
-    /**
-     * Destroy the tray icon
-     */
-    destroy() {
-        if (this.appTray) {
-            try {
-                this.appTray.destroy();
-            } catch (e) {
-                console.error('Error destroying tray:', e);
-            }
-            this.appTray = null;
-        }
     }
 }
 
