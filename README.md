@@ -9,7 +9,7 @@ A desktop app that automatically organizes your files and keeps your workspace t
 - Simple desktop UI
 
 ## Screenshots
-![App Screenshot](./assets/screenshot.png)
+![App Screenshot](./SS.png)
 
 ## Installation
 Download the latest release from **Releases**.
